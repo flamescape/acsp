@@ -1,0 +1,18 @@
+{
+  "name": "acsp",
+  "version": "0.0.4",
+  "description": "Node.JS implementation of the Assetto Corsa Server Protocol",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "assetto",
+    "corsa"
+  ],
+  "author": "Flamescape",
+  "license": "ISC",
+  "dependencies": {
+    "lodash": "^3.10.0"
+  }
+}
