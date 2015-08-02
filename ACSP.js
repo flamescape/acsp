@@ -23,6 +23,7 @@ function ACSP(options) {
     });
 
     this.sock.on('message', function(msg, rinfo){
+        //debug('MESSAGE', msg, rinfo);
         self._handleMessage(new BufferReader(msg), rinfo);
     });
 
@@ -56,7 +57,7 @@ ACSP.prototype.getCarInfo = function(carId){
     buf.fill(0);
     buf.writeUInt8(ACSP.GET_CAR_INFO, 0);
     buf.writeUInt8(carId, 1);
-    debug('BUFFER', buf);
+    //debug('BUFFER', buf);
     this._send(buf);
 }
 
@@ -73,8 +74,8 @@ ACSP.prototype.sendChat = function(carid, message){
     buf.fill(0);
     buf.writeUInt8(ACSP.SEND_CHAT, 0);
     buf.writeUInt8(carid, 1);
-    this.writeStringW(buf, message);
-    debug('BUFFER', buf);
+    this.writeStringW(buf, message, 2);
+    //debug('BUFFER', buf);
     this._send(buf);
 }
 
@@ -82,8 +83,8 @@ ACSP.prototype.broadcastChat = function(message){
     var buf = new Buffer(255);
     buf.fill(0);
     buf.writeUInt8(ACSP.BROADCAST_CHAT, 0);
-    this.writeStringW(buf, message);
-    debug(buf);
+    this.writeStringW(buf, message, 1);
+    //debug(buf);
     this._send(buf);
 }
 
@@ -93,7 +94,7 @@ ACSP.prototype.broadcastChat = function(message){
  * @return {undefined}
  */
 ACSP.prototype._send = function(buf) {
-    debug('buflen', buf.length);
+    //debug('buflen', buf.length);
     this.sock.send(buf, 0, buf.length, this.options.port, this.options.host);
 };
 
@@ -117,6 +118,12 @@ ACSP.prototype._handleMessage = function(msg, rinfo) {
                 ambient_temp: msg.nextUInt8(),
                 road_temp: msg.nextUInt8(),
                 weather_graphics: this.readString(msg)
+            });
+            break;
+        case ACSP.END_SESSION:
+            debug('end session packet!');
+            this.emit('end_session',{
+                filename: this.readStringW(msg)
             });
             break;
         case ACSP.CLIENT_EVENT:
@@ -199,13 +206,16 @@ ACSP.prototype._handleMessage = function(msg, rinfo) {
             lapinfo.grip_level = msg.nextFloatLE();
             this.emit('lap_completed', lapinfo)
             break;
+        default:
+            debug('Unrecognised message', packet_id, 'MSG:', msg);
+            break;
     }
 };
 
-ACSP.prototype.writeStringW = function(buf, str){
-	buf.writeUInt8(str.length, 1);
+ACSP.prototype.writeStringW = function(buf, str, offset){
+	buf.writeUInt8(str.length, offset);
 	// hacky method that ignores half the UTF-32 space
-	buf.write(str.split('').join('\u0000') + '\u0000', 3, str.length * 4, 'utf-16le');
+	buf.write(str.split('').join('\u0000') + '\u0000', offset + 1, str.length * 4, 'utf-16le');
 }
 
 ACSP.prototype.readString = function(buf) {

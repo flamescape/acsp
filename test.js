@@ -28,9 +28,9 @@ a.on('lap_completed',function(lapinfo){
 	debug('lapinfo',lapinfo);
 });
 
-a.on('client_event',function(client_event_info){
-	debug('CEI',client_event_info);
-});
+//a.on('client_event',function(client_event_info){
+//	debug('CEI',client_event_info);
+//});
 
 a.on('connection_closed',function(cc){
 	debug('CC',cc);
@@ -39,6 +39,17 @@ a.on('connection_closed',function(cc){
 a.on('new_connection',function(cc){
 	debug('CC',cc);
 });
+
+a.on('collide_env',function(client_event_info){
+	debug('COL_ENV',client_event_info);
+
+})
+a.on('collide_car',function(client_event_info){
+	debug('COL_CAR',client_event_info);
+})
+a.on('end_session',function(sessioninfo){
+	debug('END SESSION', sessioninfo);
+})
 
 //a.broadcastChat('Hello Gareth!');
 
