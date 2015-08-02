@@ -73,8 +73,7 @@ ACSP.prototype.sendChat = function(carid, message){
     buf.fill(0);
     buf.writeUInt8(ACSP.SEND_CHAT, 0);
     buf.writeUInt8(carid, 1);
-    buf.writeUInt8(message.length, 2);
-    buf.write(this.writeStringW(message), 3, message.length * 4, 'utf-16le');
+    this.writeStringW(buf, message);
     debug('BUFFER', buf);
     this._send(buf);
 }
@@ -83,8 +82,7 @@ ACSP.prototype.broadcastChat = function(message){
     var buf = new Buffer(255);
     buf.fill(0);
     buf.writeUInt8(ACSP.BROADCAST_CHAT, 0);
-    buf.writeUInt8(message.length, 1);
-    buf.write(this.writeStringW(message), 2, message.length * 4, 'utf-16le');
+    this.writeStringW(buf, message);
     debug(buf);
     this._send(buf);
 }
@@ -204,8 +202,10 @@ ACSP.prototype._handleMessage = function(msg, rinfo) {
     }
 };
 
-ACSP.prototype.writeStringW = function(message){
-    return message.split('').join('\u0000') + '\u0000';
+ACSP.prototype.writeStringW = function(buf, str){
+	buf.writeUInt8(str.length, 1);
+	// hacky method that ignores half the UTF-32 space
+	buf.write(str.split('').join('\u0000') + '\u0000', 3, str.length * 4, 'utf-16le');
 }
 
 ACSP.prototype.readString = function(buf) {
