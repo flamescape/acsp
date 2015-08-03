@@ -33,6 +33,8 @@ a.getCarInfo(0);
 * ```connection_closed``` a driver has disconnected
 * ```lap_completed``` a car has completed a lap
 
+**Note:** Server must be able to write to the ```./results``` path (relative to ACserver.exe) in order to emit this event. This directory does not exist by default.
+
 ## Methods
 * ```.getCarInfo(car_id)``` request car_info for car_id
 * ```.enableRealtimeReport(ms)``` request realtime car updates every ```ms``` milliseconds
