@@ -4,7 +4,7 @@ var EventEmitter = require('events').EventEmitter;
 // var iconv = new Iconv('UTF-32LE', 'UTF-8');
 var debug = require('debug')('acsp');
 var BufferReader = require('buffer-reader');
-var codepage = require('codepage');
+// var codepage = require('codepage');
 var _ = require('lodash')
 
 /**
