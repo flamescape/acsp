@@ -6,6 +6,7 @@ var debug = require('debug')('acsp');
 var BufferReader = require('buffer-reader');
 // var codepage = require('codepage');
 var _ = require('lodash')
+var Promise = require('bluebird');
 
 /**
  * ACSP Constructor
@@ -59,6 +60,23 @@ ACSP.prototype.getCarInfo = function(carId){
     buf.writeUInt8(carId, 1);
     //debug('BUFFER', buf);
     this._send(buf);
+
+    var self = this;
+    var handler;
+
+    return new Promise(function(resolve, reject){
+        handler = function(car_info){
+            if (car_info.car_id === carId) {
+                resolve(car_info);
+                self.removeListener('car_info', handler);
+            }
+        };
+
+        self.on('car_info', handler);
+    }).timeout(1000).catch(function(err){
+        self.removeListener('car_info', handler);
+        throw err;
+    });
 }
 
 ACSP.prototype.enableRealtimeReport = function(interval){
@@ -169,12 +187,24 @@ ACSP.prototype._handleMessage = function(msg, rinfo) {
             });
             break;
         case ACSP.NEW_CONNECTION:
-            this.emit('new_connection',{
+            var conn_info = {
                 driver_name: this.readStringW(msg),
                 driver_guid: this.readStringW(msg),
                 car_id: msg.nextUInt8(),
                 car_model: this.readString(msg),
                 car_skin: this.readString(msg)
+            };
+
+            this.emit('new_connection', conn_info);
+
+            var self = this;
+
+            this.pollUntilStatusKnown(conn_info.car_id).then(function(isConnected){
+                if (isConnected) {
+                    self.emit('is_connected', conn_info.car_id);
+                } else {
+                    self.emit('connection_closed', conn_info);
+                }
             });
             break;
         case ACSP.CONNECTION_CLOSED:
@@ -209,6 +239,44 @@ ACSP.prototype._handleMessage = function(msg, rinfo) {
             debug('Unrecognised message', packet_id, 'MSG:', msg);
             break;
     }
+};
+
+ACSP.prototype.pollCarStatus = function(car_id){
+    var self = this;
+
+    return this.getCarInfo(car_id).cancellable().then(function(info){
+        if (!info.is_connected) {
+            return Promise.delay(1000).then(function(){
+                return self.pollCarStatus(car_id);
+            });
+        }
+
+        return true;
+    });
+}
+
+ACSP.prototype.pollUntilStatusKnown = function(car_id){
+    var pollPromise = this.pollCarStatus(car_id);
+
+    var handler;
+    var self = this;
+
+    handler = function(conn_info){
+        if (conn_info === car_id) {
+            pollPromise.cancel(Error('Connection reset'));
+        }
+    };
+
+    this.on('new_connection', handler);
+    this.on('connection_closed', handler);
+
+    return pollPromise.catch(function(err){
+        debug('Poll promise error:', err);
+        return false;
+    }).finally(function(){
+        self.removeListener('new_connection', handler);
+        self.removeListener('connection_closed', handler);
+    });
 };
 
 ACSP.prototype.writeStringW = function(buf, str, offset){

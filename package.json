@@ -13,6 +13,7 @@
   "author": "Flamescape",
   "license": "ISC",
   "dependencies": {
+    "bluebird": "^2.9.34",
     "buffer-reader": "^0.1.0",
     "debug": "^2.2.0",
     "lodash": "^3.10.0"

@@ -24,6 +24,10 @@ a.on('car_update', function(carupdate){
 
 a.enableRealtimeReport(0);
 
+a.getCarInfo(0).then(function(info){
+	debug('Got info for car 0:', info)
+})
+
 a.on('lap_completed',function(lapinfo){
 	debug('lapinfo',lapinfo);
 });
@@ -55,3 +59,18 @@ a.on('end_session',function(sessioninfo){
 
 // a.broadcastChat('Hello Gareth!');
 // a.broadcastChat('Hello Gareth!');
+
+var listeners = 0;
+a.on('newListener', function(){
+	listeners++;
+	debug('added a listener, now have %s listeners', listeners);
+})
+
+a.on('removeListener', function(){
+	listeners--;
+	debug('removed a listener, now have %s listeners', listeners);
+})
+
+a.pollUntilStatusKnown(0).then(function(status){
+	debug('Car0 is connected:', status);
+});
