@@ -129,8 +129,7 @@ ACSP.prototype._handleMessage = function(msg, rinfo) {
         case ACSP.CLIENT_EVENT:
             var client_event = {
                 ev_type: msg.nextUInt8(),
-                car_id: msg.nextUInt8(),              
-                //other_car_id: 255
+                car_id: msg.nextUInt8(),                              
             }
             if(client_event.ev_type == ACSP.CE_COLLISION_WITH_CAR){
                 client_event.other_car_id = msg.nextUInt8();
@@ -152,8 +151,8 @@ ACSP.prototype._handleMessage = function(msg, rinfo) {
             this.emit('car_info', {
                 car_id: msg.nextUInt8(),
                 is_connected: msg.nextUInt8(),
-                model: this.readStringW(msg),
-                skin: this.readStringW(msg),
+                car_model: this.readStringW(msg),
+                car_skin: this.readStringW(msg),
                 driver_name: this.readStringW(msg),
                 driver_team: this.readStringW(msg),
                 driver_guid: this.readStringW(msg)
