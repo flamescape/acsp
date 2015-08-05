@@ -10,12 +10,21 @@
     "assetto",
     "corsa"
   ],
-  "author": "Flamescape",
+  "author": {
+    "name": "Flamescape"
+  },
   "license": "ISC",
   "dependencies": {
     "bluebird": "^2.9.34",
     "buffer-reader": "^0.1.0",
     "debug": "^2.2.0",
     "lodash": "^3.10.0"
-  }
+  },
+  "readme": "# ACSP - Assetto Corsa Server Protocol\r\nUses the UDP Plugin feature of Assetto Corsa v1.2+ to get realtime reports on car positions, collisions, lap times and more...\r\n\r\n## Install\r\n```npm install acsp```\r\n\r\n## Usage\r\n```js\r\nvar ACSP = require('acsp');\r\n\r\nvar a = ACSP({\r\n  host: 'localhost',\r\n  port: 11000\r\n});\r\n\r\n// listen for car_info events\r\na.on('car_info', function(carinfo){\r\n\tconsole.log(carinfo);\r\n});\r\n\r\n// request car_info for car #0\r\na.getCarInfo(0);\r\n```\r\n\r\n## Events\r\n* ```car_info``` sent in response to a ```.getCarInfo()``` call\r\n* ```new_session``` triggered when a new session starts\r\n* ```end_session``` triggered when a session ends **(see note below)**\r\n* ```collide_env``` triggered when a car collides with the environment\r\n* ```collide_car``` triggered when a car collides with another car\r\n* ```car_update``` triggered every ```x``` milliseconds after calling ```.enableRealtimeReport(x)```\r\n* ```new_connection``` a new driver has connected\r\n* ```connection_closed``` a driver has disconnected\r\n* ```lap_completed``` a car has completed a lap\r\n\r\n**Note:** Server must be able to write to the ```./results``` path (relative to ACserver.exe) in order to emit this event. This directory does not exist by default.\r\n\r\n## Methods\r\n* ```.getCarInfo(car_id)``` request car_info for car_id\r\n* ```.enableRealtimeReport(ms)``` request realtime car updates every ```ms``` milliseconds\r\n* ```.sendChat(car_id, msg)``` send a chat message ```msg``` to driver ```car_id```\r\n* ```.broadcastChat(msg)``` send a chat message ```msg``` to all connected drivers\r\n",
+  "readmeFilename": "README.md",
+  "gitHead": "eb67debf91ad5d98cda3ab7040786daa98c997b0",
+  "_id": "acsp@0.0.10",
+  "_shasum": "64ed8c5c1966f79c8727a9448182f908ae042850",
+  "_from": "acsp",
+  "_resolved": "file:acsp"
 }
