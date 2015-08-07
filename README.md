@@ -20,6 +20,11 @@ a.on('car_info', function(carinfo){
 
 // request car_info for car #0
 a.getCarInfo(0);
+
+// getCarInfo() also returns a Promise
+a.getCarInfo(0).then(function(info){
+	console.log(info); // {...}
+})
 ```
 
 ## Events
@@ -33,7 +38,7 @@ a.getCarInfo(0);
 * ```connection_closed``` a driver has disconnected
 * ```lap_completed``` a car has completed a lap
 
-**Note:** Server must be able to write to the ```./results``` path (relative to ACserver.exe) in order to emit this event. This directory does not exist by default.
+**Note:** ACServer must be able to write to the ```./results``` path (relative to ACserver.exe) in order for ACSP to emit this event. This directory does not exist by default - so you will need to create it! (This is an Assetto Corsa bug)
 
 ## Methods
 * ```.getCarInfo(car_id)``` request car_info for car_id
