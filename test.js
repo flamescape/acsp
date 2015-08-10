@@ -1,6 +1,8 @@
 var ACSP = require('./index');
 var debug = require('debug')('test');
 
+console.log('starting test!');
+
 var a = ACSP({host: '127.0.0.1', port: 11000});
 
 a.on('car_info', function(carinfo){
@@ -15,18 +17,20 @@ a.on('car_update', function(carupdate){
 	debug('CARUPDATE', carupdate);
 });
 
- for (var i = 0; i < 10; i++) {
-  	//a.getCarInfo(i);
-  	a.sendChat(i,'You are car '+i);
- }
+
+
+ // for (var i = 0; i < 10; i++) {
+ //  	//a.getCarInfo(i);
+ //  	a.sendChat(i,'You are car '+i);
+ // }
 
 //a.sendChat(1,'Hi');
 
 a.enableRealtimeReport(0);
 
-a.getCarInfo(0).then(function(info){
-	debug('Got info for car 0:', info)
-})
+// a.getCarInfo(0).then(function(info){
+// 	debug('Got info for car 0:', info)
+// })
 
 a.on('lap_completed',function(lapinfo){
 	debug('lapinfo',lapinfo);
@@ -55,6 +59,11 @@ a.on('end_session',function(sessioninfo){
 	debug('END SESSION', sessioninfo);
 })
 
+a.on('session_info',function(sessioninfo){
+	console.log('hi!',sessioninfo);
+})
+a.getSessionInfo();
+
 //a.broadcastChat('Hello Gareth!');
 
 // a.broadcastChat('Hello Gareth!');
@@ -74,3 +83,5 @@ a.on('removeListener', function(){
 a.pollUntilStatusKnown(0).then(function(status){
 	debug('Car0 is connected:', status);
 });
+
+

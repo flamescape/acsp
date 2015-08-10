@@ -88,13 +88,13 @@ ACSP.prototype.getCarInfo = function(carId){
     });
 }
 
-ACSP.prototype.getSessionInfo = function(sessionid){
+ACSP.prototype.getSessionInfo = function(sessionid){    
     // TODO: use promise as in getCarInfo
     var buf = new Buffer(100);
     buf.fill(0);
     buf.writeUInt8(ACSP.GET_SESSION_INFO,0);
     // use the provided sessionid, or the current session by default
-    if(!sessionid){ sessionid = (-1); }
+    if(!sessionid){ sessionid = (-1); }    
     buf.writeInt16LE(sessionid,1);
     this._send(buf);
 }
@@ -196,7 +196,7 @@ ACSP.prototype._handleMessage = function(msg, rinfo) {
             this.emit('version', version);
             break;        
         case ACSP.NEW_SESSION:
-        case ACSP.SESSION_INFO:
+        case ACSP.SESSION_INFO:         
             var session_info = {
                 version: msg.nextUInt8(),
                 sess_index: msg.nextUInt8(),
@@ -214,7 +214,7 @@ ACSP.prototype._handleMessage = function(msg, rinfo) {
                 ambient_temp: msg.nextUInt8(),
                 road_temp: msg.nextUInt8(),
                 weather_graphics: this.readString(msg),
-                elapsed_ms: msg.nextUInt16LE()
+                elapsed_ms: msg.nextInt32LE()
             }; 
             this.emit('session_info',session_info);
             // TODO: also emit new_session when needed?
