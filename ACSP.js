@@ -42,6 +42,11 @@ ACSP.CAR_UPDATE                = 53;
 ACSP.CAR_INFO                  = 54; // Sent as response to ACSP_GET_CAR_INFO command
 ACSP.END_SESSION               = 55;
 ACSP.LAP_COMPLETED             = 73;
+ACSP.VERSION                   = 000;
+ACSP.SESSION_INFO              = 000;
+ACSP.CHAT_MESSAGE              = 000;
+ACSP.CLIENT_LOADED             = 000;
+ACSP.ERROR                     = 000;
 // EVENTS
 ACSP.CLIENT_EVENT              = 130;
 // EVENT TYPES
@@ -52,6 +57,10 @@ ACSP.REALTIMEPOS_INTERVAL      = 200;
 ACSP.GET_CAR_INFO              = 201;
 ACSP.SEND_CHAT                 = 202; // Sends chat to one car
 ACSP.BROADCAST_CHAT            = 203; // Sends chat to everybody 
+ACSP.KICK_USER                 = 000;
+ACSP.GET_SESSION_INFO          = 000;
+ACSP.SET_SESSION_INFO          = 000;
+ACSP.VERSION                   = 000;
 
 ACSP.prototype.getCarInfo = function(carId){
     var buf = new Buffer(100);
@@ -77,6 +86,13 @@ ACSP.prototype.getCarInfo = function(carId){
         self.removeListener('car_info', handler);
         throw err;
     });
+}
+
+ACSP.prototype.getSessionInfo = function(){
+    // TODO: Implement
+}
+ACSP.prototype.setSessionInfo = function(){
+    // TODO: Implement
 }
 
 ACSP.prototype.enableRealtimeReport = function(interval){
@@ -106,6 +122,13 @@ ACSP.prototype.broadcastChat = function(message){
     this._send(buf);
 }
 
+ACSP.prototype.KickUser = function(carId){
+    // TODO: Implement
+}
+ACSP.prototype.getVersion = function(){
+    // TODO: Implement
+}
+
 /**
  * [private] Send packet to AC server
  * @param  {Buffer} buff Contents of the message
@@ -126,8 +149,36 @@ ACSP.prototype._handleMessage = function(msg, rinfo) {
     var packet_id = msg.nextUInt8();
 
     switch (packet_id) {
+        case ACSP.VERSION{
+            // TODO: Implement this correctly
+            var version = msg.nextUInt8();
+            break;
+        };
+        case ACSP.SESSION_INFO{
+            this.emit('session_info',{
+                version: msg.nextUInt8(),
+                sess_index: msg.nextUInt8(),
+                current_session: msg.nextUInt8(),
+                session_count: msg.nextUInt8(),
+                server_name: this.readStringW(msg),
+                track: this.readString(msg),
+                track_config: this.readString(msg),
+                name: this.readString(msg),
+                type: msg.nextUInt8(),
+                time: msg.nextUInt16LE(),
+                laps: msg.nextUInt16LE(),
+                wait_time: msg.nextUInt16LE(),
+                ambient_temp: msg.nextUInt8(),
+                road_temp: msg.nextUInt8(),
+                weather_graphics: this.readString(msg),
+                elapsed_ms: msg.nextUInt16LE()
+            });
+            break;
+        }
         case ACSP.NEW_SESSION:
             this.emit('new_session',{
+                // TODO: read version info package here
+                // version: msg.nextUInt8(),
                 name: this.readString(msg),
                 type: msg.nextUInt8(),
                 time: msg.nextUInt16LE(),
@@ -207,6 +258,12 @@ ACSP.prototype._handleMessage = function(msg, rinfo) {
                 }
             });
             break;
+        case ACSP.CLIENT_LOADED:
+            this.emit('client_loaded'{
+                // TODO: READ MESSAGE
+                // also emit a is_connected event to maintain backwards compatibility?
+            });
+            break;
         case ACSP.CONNECTION_CLOSED:
             this.emit('connection_closed',{
                 driver_name: this.readStringW(msg),
@@ -234,6 +291,16 @@ ACSP.prototype._handleMessage = function(msg, rinfo) {
             }
             lapinfo.grip_level = msg.nextFloatLE();
             this.emit('lap_completed', lapinfo)
+            break;
+        case ACSP.CHAT_MESSAGE:
+            // TODO: Implement
+            this.emit('chat_message',{
+                    car_id: msg.nextUInt8(),
+                    message: this.readStringW(msg);
+            });
+            break;        
+        case ACSP.ERROR:
+            debug('ERROR', 'MSG:', this.readStringW(msg));
             break;
         default:
             debug('Unrecognised message', packet_id, 'MSG:', msg);
