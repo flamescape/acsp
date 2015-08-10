@@ -7,6 +7,8 @@ var BufferReader = require('buffer-reader');
 // var codepage = require('codepage');
 var _ = require('lodash')
 var Promise = require('bluebird');
+var PromiseQueue = require('promise-queue');
+PromiseQueue.configure(Promise);
 
 /**
  * ACSP Constructor
@@ -16,7 +18,11 @@ function ACSP(options) {
     var self = this;
 
     this.options = options;
-    this.sock = dgram.createSocket(this.options.sockType)
+    this.sock = dgram.createSocket(this.options.sockType);
+    Promise.promisifyAll(this.sock);
+
+    // Message send queue
+    this.sendQueue = new PromiseQueue(1, Infinity);
 
     this.sock.on('error', function(err){
         // pass socket errors to main
@@ -162,8 +168,11 @@ ACSP.prototype.getVersion = function(){
  * @return {undefined}
  */
 ACSP.prototype._send = function(buf) {
+    var self = this;
     //debug('buflen', buf.length);
-    this.sock.send(buf, 0, buf.length, this.options.port, this.options.host);
+    return this.sendQueue.add(function(){
+        return self.sock.sendAsync(buf, 0, buf.length, self.options.port, self.options.host);
+    });
 };
 
 /**
