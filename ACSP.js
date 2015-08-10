@@ -94,8 +94,7 @@ ACSP.prototype.getSessionInfo = function(sessionid){
     buf.fill(0);
     buf.writeUInt8(ACSP.GET_SESSION_INFO,0);
     // use the provided sessionid, or the current session by default
-    if(!sessionid){ sessionid = (-1); }    
-    buf.writeInt16LE(sessionid,1);
+    buf.writeInt16LE(sessionid || -1,1);
     this._send(buf);
 }
 ACSP.prototype.setSessionInfo = function(sessioninfo){
@@ -146,12 +145,11 @@ ACSP.prototype.broadcastChat = function(message){
     this._send(buf);
 }
 
-ACSP.prototype.KickUser = function(user_id){
-    // TODO: Test if this is GUID or car_id
+ACSP.prototype.KickUser = function(car_id){
     var buf = new Buffer(255);
     buf.fill(0);
     buf.writeUInt8(ACSP.KICK_USER,0);
-    buf.writeUInt8(user_id,1);
+    buf.writeUInt8(car_id,1);
     this._send(buf);
 }
 ACSP.prototype.getVersion = function(){
@@ -187,8 +185,6 @@ ACSP.prototype._handleMessage = function(msg, rinfo) {
         case ACSP.CLIENT_LOADED:
             var car_id = msg.nextUInt8();
             this.emit('client_loaded',car_id);
-            // also emit is_connected for backwards compatibility?
-            // this.emit('is_connected', car_id);
             break;
         case ACSP.VERSION:
             // TODO: Do something with this??
@@ -216,9 +212,9 @@ ACSP.prototype._handleMessage = function(msg, rinfo) {
                 weather_graphics: this.readString(msg),
                 elapsed_ms: msg.nextInt32LE()
             }; 
-            this.emit('session_info',session_info);
-            // TODO: also emit new_session when needed?
-            // if(packet_id == ACSP.NEW_SESSION){ this.emit('new_session',sesion_info);}
+            this.emit('version',session_info.version);
+            this.emit('session_info',session_info);            
+            if(packet_id == ACSP.NEW_SESSION){ this.emit('new_session',sesion_info);}
             break;                
         case ACSP.END_SESSION:
             debug('end session packet!');
