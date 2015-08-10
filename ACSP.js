@@ -214,7 +214,7 @@ ACSP.prototype._handleMessage = function(msg, rinfo) {
             }; 
             this.emit('version',session_info.version);
             this.emit('session_info',session_info);            
-            if(packet_id == ACSP.NEW_SESSION){ this.emit('new_session',sesion_info);}
+            if(packet_id == ACSP.NEW_SESSION){ this.emit('new_session',session_info);}
             break;                
         case ACSP.END_SESSION:
             debug('end session packet!');
