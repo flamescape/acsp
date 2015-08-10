@@ -94,8 +94,8 @@ ACSP.prototype.getSessionInfo = function(sessionid){
     buf.fill(0);
     buf.writeUInt8(ACSP.GET_SESSION_INFO,0);
     // use the provided sessionid, or the current session by default
-    if(!sessionid){ sessionid = -1; }
-    buf.writeUInt16LE(sessionid,1);
+    if(!sessionid){ sessionid = (-1); }
+    buf.writeInt16LE(sessionid,1);
     this._send(buf);
 }
 ACSP.prototype.setSessionInfo = function(sessioninfo){
@@ -181,7 +181,7 @@ ACSP.prototype._handleMessage = function(msg, rinfo) {
         case ACSP.CHAT:
             this.emit('chat_message',{
                     car_id: msg.nextUInt8(),
-                    message: this.readStringW(msg);
+                    message: this.readStringW(msg)
             });
             break; 
         case ACSP.CLIENT_LOADED:
@@ -190,12 +190,11 @@ ACSP.prototype._handleMessage = function(msg, rinfo) {
             // also emit is_connected for backwards compatibility?
             // this.emit('is_connected', car_id);
             break;
-        case ACSP.VERSION{
+        case ACSP.VERSION:
             // TODO: Do something with this??
             var version = msg.nextUInt8();
             this.emit('version', version);
-            break;
-        };
+            break;        
         case ACSP.NEW_SESSION:
         case ACSP.SESSION_INFO:
             var session_info = {
@@ -366,9 +365,9 @@ ACSP.prototype.pollUntilStatusKnown = function(car_id){
 };
 
 ACSP.prototype.writeStringW = function(buf, str, offset){
-	buf.writeUInt8(str.length, offset);
-	// hacky method that ignores half the UTF-32 space
-	buf.write(str.split('').join('\u0000') + '\u0000', offset + 1, str.length * 4, 'utf-16le');
+    buf.writeUInt8(str.length, offset);
+    // hacky method that ignores half the UTF-32 space
+    buf.write(str.split('').join('\u0000') + '\u0000', offset + 1, str.length * 4, 'utf-16le');
 }
 
 ACSP.prototype.readString = function(buf) {
