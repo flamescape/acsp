@@ -1,6 +1,6 @@
 {
   "name": "acsp",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Node.JS implementation of the Assetto Corsa Server Protocol",
   "main": "index.js",
   "scripts": {
