@@ -41,12 +41,12 @@ ACSP.CONNECTION_CLOSED         = 52;
 ACSP.CAR_UPDATE                = 53;
 ACSP.CAR_INFO                  = 54; // Sent as response to ACSP_GET_CAR_INFO command
 ACSP.END_SESSION               = 55;
+ACSP.VERSION                   = 56;
+ACSP.CHAT                      = 57;
+ACSP.CLIENT_LOADED             = 58;
+ACSP.SESSION_INFO              = 59;
+ACSP.ERROR                     = 60;
 ACSP.LAP_COMPLETED             = 73;
-ACSP.VERSION                   = 000;
-ACSP.SESSION_INFO              = 000;
-ACSP.CHAT_MESSAGE              = 000;
-ACSP.CLIENT_LOADED             = 000;
-ACSP.ERROR                     = 000;
 // EVENTS
 ACSP.CLIENT_EVENT              = 130;
 // EVENT TYPES
@@ -57,10 +57,10 @@ ACSP.REALTIMEPOS_INTERVAL      = 200;
 ACSP.GET_CAR_INFO              = 201;
 ACSP.SEND_CHAT                 = 202; // Sends chat to one car
 ACSP.BROADCAST_CHAT            = 203; // Sends chat to everybody 
-ACSP.KICK_USER                 = 000;
-ACSP.GET_SESSION_INFO          = 000;
-ACSP.SET_SESSION_INFO          = 000;
-ACSP.VERSION                   = 000;
+ACSP.GET_SESSION_INFO          = 204;
+ACSP.SET_SESSION_INFO          = 205;
+ACSP.KICK_USER                 = 206;
+ACSP.VERSION                   = 000; // Not implemented
 
 ACSP.prototype.getCarInfo = function(carId){
     var buf = new Buffer(100);
@@ -88,11 +88,35 @@ ACSP.prototype.getCarInfo = function(carId){
     });
 }
 
-ACSP.prototype.getSessionInfo = function(){
-    // TODO: Implement
+ACSP.prototype.getSessionInfo = function(sessionid){
+    // TODO: use promise as in getCarInfo
+    var buf = new Buffer(100);
+    buf.fill(0);
+    buf.writeUInt8(ACSP.GET_SESSION_INFO,0);
+    // use the provided sessionid, or the current session by default
+    if(!sessionid){ sessionid = -1; }
+    buf.writeUInt16LE(sessionid,1);
+    this._send(buf);
 }
-ACSP.prototype.setSessionInfo = function(){
-    // TODO: Implement
+ACSP.prototype.setSessionInfo = function(sessioninfo){
+    // TODO: Fix the implementation
+    var buf = new Buffer(100);
+    buf.fill(0);
+    buf.writeUInt8(ACSP.SET_SESSION_INFO,0);
+    // Session Index
+    buf.writeUInt8(sessioninfo.sess_index,1);
+    // Session Name
+    buf.writeStringW(sessioninfo.name, 2);
+    // Session type
+    buf.writeUInt8(sessioninfo.type, 3);
+    // Laps
+    buf.writeUInt32LE(sessioninfo.laps,4);
+    // Time (in seconds)
+    buf.writeUInt32LE(sessioninfo.time,5);
+    // Wait time (in seconds)
+    buf.writeUInt32LE(sessioninfo.wait_time);
+
+    this._send(buf);
 }
 
 ACSP.prototype.enableRealtimeReport = function(interval){
@@ -122,8 +146,13 @@ ACSP.prototype.broadcastChat = function(message){
     this._send(buf);
 }
 
-ACSP.prototype.KickUser = function(carId){
-    // TODO: Implement
+ACSP.prototype.KickUser = function(user_id){
+    // TODO: Test if this is GUID or car_id
+    var buf = new Buffer(255);
+    buf.fill(0);
+    buf.writeUInt8(ACSP.KICK_USER,0);
+    buf.writeUInt8(user_id,1);
+    this._send(buf);
 }
 ACSP.prototype.getVersion = function(){
     // TODO: Implement
@@ -149,17 +178,32 @@ ACSP.prototype._handleMessage = function(msg, rinfo) {
     var packet_id = msg.nextUInt8();
 
     switch (packet_id) {
+        case ACSP.CHAT:
+            this.emit('chat_message',{
+                    car_id: msg.nextUInt8(),
+                    message: this.readStringW(msg);
+            });
+            break; 
+        case ACSP.CLIENT_LOADED:
+            var car_id = msg.nextUInt8();
+            this.emit('client_loaded',car_id);
+            // also emit is_connected for backwards compatibility?
+            // this.emit('is_connected', car_id);
+            break;
         case ACSP.VERSION{
-            // TODO: Implement this correctly
+            // TODO: Do something with this??
             var version = msg.nextUInt8();
+            this.emit('version', version);
             break;
         };
-        case ACSP.SESSION_INFO{
-            this.emit('session_info',{
+        case ACSP.NEW_SESSION:
+        case ACSP.SESSION_INFO:
+            var session_info = {
                 version: msg.nextUInt8(),
                 sess_index: msg.nextUInt8(),
-                current_session: msg.nextUInt8(),
+                current_session_index: msg.nextUInt8(),
                 session_count: msg.nextUInt8(),
+
                 server_name: this.readStringW(msg),
                 track: this.readString(msg),
                 track_config: this.readString(msg),
@@ -172,23 +216,11 @@ ACSP.prototype._handleMessage = function(msg, rinfo) {
                 road_temp: msg.nextUInt8(),
                 weather_graphics: this.readString(msg),
                 elapsed_ms: msg.nextUInt16LE()
-            });
-            break;
-        }
-        case ACSP.NEW_SESSION:
-            this.emit('new_session',{
-                // TODO: read version info package here
-                // version: msg.nextUInt8(),
-                name: this.readString(msg),
-                type: msg.nextUInt8(),
-                time: msg.nextUInt16LE(),
-                laps: msg.nextUInt16LE(),
-                wait_time: msg.nextUInt16LE(),
-                ambient_temp: msg.nextUInt8(),
-                road_temp: msg.nextUInt8(),
-                weather_graphics: this.readString(msg)
-            });
-            break;
+            }; 
+            this.emit('session_info',session_info);
+            // TODO: also emit new_session when needed?
+            // if(packet_id == ACSP.NEW_SESSION){ this.emit('new_session',sesion_info);}
+            break;                
         case ACSP.END_SESSION:
             debug('end session packet!');
             this.emit('end_session',{
@@ -257,13 +289,7 @@ ACSP.prototype._handleMessage = function(msg, rinfo) {
                     self.emit('connection_closed', conn_info);
                 }
             });
-            break;
-        case ACSP.CLIENT_LOADED:
-            this.emit('client_loaded'{
-                // TODO: READ MESSAGE
-                // also emit a is_connected event to maintain backwards compatibility?
-            });
-            break;
+            break;        
         case ACSP.CONNECTION_CLOSED:
             this.emit('connection_closed',{
                 driver_name: this.readStringW(msg),
@@ -291,14 +317,7 @@ ACSP.prototype._handleMessage = function(msg, rinfo) {
             }
             lapinfo.grip_level = msg.nextFloatLE();
             this.emit('lap_completed', lapinfo)
-            break;
-        case ACSP.CHAT_MESSAGE:
-            // TODO: Implement
-            this.emit('chat_message',{
-                    car_id: msg.nextUInt8(),
-                    message: this.readStringW(msg);
-            });
-            break;        
+            break;       
         case ACSP.ERROR:
             debug('ERROR', 'MSG:', this.readStringW(msg));
             break;
