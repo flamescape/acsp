@@ -337,15 +337,15 @@ ACSP.prototype._handleMessage = function(msg, rinfo) {
 
             this.emit('new_connection', conn_info);
 
-            var self = this;
+            // var self = this;
 
-            this.pollUntilStatusKnown(conn_info.car_id).then(function(isConnected){
-                if (isConnected) {
-                    self.emit('is_connected', conn_info.car_id);
-                } else {
-                    self.emit('connection_closed', conn_info);
-                }
-            });
+            // this.pollUntilStatusKnown(conn_info.car_id).then(function(isConnected){
+            //     if (isConnected) {
+            //         self.emit('is_connected', conn_info.car_id);
+            //     } else {
+            //         self.emit('connection_closed', conn_info);
+            //     }
+            // });
             break;        
         case ACSP.CONNECTION_CLOSED:
             this.emit('connection_closed',{
