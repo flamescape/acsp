@@ -1,9 +1,21 @@
 var ACSP = require('./index');
 var debug = require('debug')('test');
 
-console.log('starting test!');
 
 var a = ACSP({host: '127.0.0.1', port: 11000});
+
+var listeners = 0;
+a.on('newListener', function(){
+	listeners++;
+	debug('added a listener, now have %s listeners', listeners);
+})
+
+a.on('removeListener', function(){
+	listeners--;
+	debug('removed a listener, now have %s listeners', listeners);
+})
+
+console.log('starting test!');
 
 a.on('car_info', function(carinfo){
 	debug('CARINFO', carinfo);
@@ -55,33 +67,19 @@ a.on('collide_env',function(client_event_info){
 a.on('collide_car',function(client_event_info){
 	debug('COL_CAR',client_event_info);
 })
-a.on('end_session',function(sessioninfo){
-	debug('END SESSION', sessioninfo);
-})
 
-a.on('session_info',function(sessioninfo){
-	console.log('hi!',sessioninfo);
-})
-a.getSessionInfo();
-
-//a.broadcastChat('Hello Gareth!');
-
-// a.broadcastChat('Hello Gareth!');
-// a.broadcastChat('Hello Gareth!');
-
-var listeners = 0;
-a.on('newListener', function(){
-	listeners++;
-	debug('added a listener, now have %s listeners', listeners);
-})
-
-a.on('removeListener', function(){
-	listeners--;
-	debug('removed a listener, now have %s listeners', listeners);
-})
-
-a.pollUntilStatusKnown(0).then(function(status){
-	debug('Car0 is connected:', status);
+a.on('end_session',function(data){
+	debug('end_session', data);
 });
 
+a.on('session_info',function(data){
+	debug('session_info',data);
+});
 
+a.getSessionInfo(0);
+a.getSessionInfo(1);
+a.getSessionInfo(2);
+
+a.getCarInfo(0);
+
+a.broadcastChat('Hello World!');

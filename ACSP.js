@@ -1,14 +1,38 @@
 var dgram = require('dgram');
 var EventEmitter = require('events').EventEmitter;
-// var Iconv  = require('iconv').Iconv;
-// var iconv = new Iconv('UTF-32LE', 'UTF-8');
 var debug = require('debug')('acsp');
 var BufferReader = require('buffer-reader');
-// var codepage = require('codepage');
+var BufferWriter = require('buffer-write');
 var _ = require('lodash')
 var Promise = require('bluebird');
 var PromiseQueue = require('promise-queue');
 PromiseQueue.configure(Promise);
+
+/**
+ * Create a "wide" string from a regular JS string
+ * @param {string} str
+ * @return {Buffer}
+ */
+function StringW(str) {
+    if (typeof str !== "string") {
+        // Ensure we're operating on a string.
+        str = "" + str;
+    }
+    if (str.length > 255) {
+        // Sorry, "wide" strings can only be up to 255 characters;
+        // The remainder will be truncated.
+        str = str.substr(0, 255);
+    }
+    var buf = new Buffer((str.length * 4) + 1);
+    buf.writeUInt8(str.length, 0);
+    
+    if (str.length > 0) {
+        // Hacky method that ignores half the UTF-32 space
+        buf.write(str.split('').join('\u0000') + '\u0000', 1, str.length * 4, 'utf-16le');
+    }
+
+    return buf;
+}
 
 /**
  * ACSP Constructor
@@ -66,14 +90,15 @@ ACSP.BROADCAST_CHAT            = 203; // Sends chat to everybody
 ACSP.GET_SESSION_INFO          = 204;
 ACSP.SET_SESSION_INFO          = 205;
 ACSP.KICK_USER                 = 206;
-ACSP.VERSION                   = 000; // Not implemented
+// ACSP.VERSION                   = 0; // Not implemented
 
 ACSP.prototype.getCarInfo = function(carId){
-    var buf = new Buffer(100);
-    buf.fill(0);
-    buf.writeUInt8(ACSP.GET_CAR_INFO, 0);
-    buf.writeUInt8(carId, 1);
-    //debug('BUFFER', buf);
+
+    var buf = BufferWriter()
+        .writeUInt8(ACSP.GET_CAR_INFO)
+        .writeUInt8(carId)
+        .toBuffer();
+
     this._send(buf);
 
     var self = this;
@@ -88,84 +113,112 @@ ACSP.prototype.getCarInfo = function(carId){
         };
 
         self.on('car_info', handler);
-    }).timeout(1000).catch(function(err){
+    }).timeout(1000).finally(function(){
         self.removeListener('car_info', handler);
-        throw err;
     });
 }
 
-ACSP.prototype.getSessionInfo = function(sessionid){    
-    // TODO: use promise as in getCarInfo
-    var buf = new Buffer(100);
-    buf.fill(0);
-    buf.writeUInt8(ACSP.GET_SESSION_INFO,0);
-    // use the provided sessionid, or the current session by default
-    buf.writeInt16LE(sessionid || -1,1);
-    this._send(buf);
-}
-ACSP.prototype.setSessionInfo = function(sessioninfo){
-    // TODO: Fix the implementation
-    var buf = new Buffer(100);
-    buf.fill(0);
-    buf.writeUInt8(ACSP.SET_SESSION_INFO,0);
-    // Session Index
-    buf.writeUInt8(sessioninfo.sess_index,1);
-    // Session Name
-    buf.writeStringW(sessioninfo.name, 2);
-    // Session type
-    buf.writeUInt8(sessioninfo.type, 3);
-    // Laps
-    buf.writeUInt32LE(sessioninfo.laps,4);
-    // Time (in seconds)
-    buf.writeUInt32LE(sessioninfo.time,5);
-    // Wait time (in seconds)
-    buf.writeUInt32LE(sessioninfo.wait_time);
+ACSP.prototype.getSessionInfo = function(sess_index){    
+
+    // sess_index is optional
+    if (typeof sess_index === 'undefined') {
+        sess_index = -1;
+    }
+
+    var buf = BufferWriter()
+        .writeUInt8(ACSP.GET_SESSION_INFO)
+        .writeInt16LE(sess_index)
+        .toBuffer();
 
     this._send(buf);
+
+    var self = this;
+    var handler;
+
+    return new Promise(function(resolve, reject){
+        handler = function(session_info){
+            if (session_info.sess_index === sess_index
+            || (sess_index === -1 && session_info.sess_index === session_info.current_session_index)) {
+                resolve(session_info);
+                self.removeListener('session_info', handler);
+            }
+        };
+
+        self.on('session_info', handler);
+    }).timeout(1000).finally(function(){
+        self.removeListener('session_info', handler);
+    });
+
+}
+
+ACSP.prototype.setSessionInfo = function(sessioninfo){
+
+    var buf = BufferWriter()
+        .writeUInt8(ACSP.SET_SESSION_INFO)
+        .writeUInt8(sessioninfo.sess_index)   // Session Index
+        .write(StringW(sessioninfo.name))     // Session Name
+        .writeUInt8(sessioninfo.type)         // Session type
+        .writeUInt32LE(sessioninfo.laps)      // Laps
+        .writeUInt32LE(sessioninfo.time)      // Time (in seconds)
+        .writeUInt32LE(sessioninfo.wait_time) // Wait time (in seconds)
+        .toBuffer();
+
+    return this._send(buf);
 }
 
 ACSP.prototype.enableRealtimeReport = function(interval){
-    var buf = new Buffer(100);
-    buf.fill(0);
-    buf.writeUInt8(ACSP.REALTIMEPOS_INTERVAL,0);
-    buf.writeUInt16LE(interval,1)
-    this._send(buf);
+
+    var buf = BufferWriter()
+        .writeUInt8(ACSP.REALTIMEPOS_INTERVAL)
+        .writeUInt16LE(interval)
+        .toBuffer();
+
+    return this._send(buf);
 }
 
 ACSP.prototype.sendChat = function(carid, message){
-    var buf = new Buffer(255);
-    buf.fill(0);
-    buf.writeUInt8(ACSP.SEND_CHAT, 0);
-    buf.writeUInt8(carid, 1);
-    this.writeStringW(buf, message, 2);
-    //debug('BUFFER', buf);
-    this._send(buf);
+
+    var buf = BufferWriter()
+        .writeUInt8(ACSP.SEND_CHAT)
+        .writeUInt8(carid)
+        .write(StringW(message))
+        .toBuffer();
+    
+    return this._send(buf);
 }
 
 ACSP.prototype.broadcastChat = function(message){
-    var buf = new Buffer(255);
-    buf.fill(0);
-    buf.writeUInt8(ACSP.BROADCAST_CHAT, 0);
-    this.writeStringW(buf, message, 1);
-    //debug(buf);
-    this._send(buf);
+
+    var buf = BufferWriter()
+        .writeUInt8(ACSP.BROADCAST_CHAT)
+        .write(StringW(message))
+        .toBuffer();
+    
+    return this._send(buf);
 }
 
-ACSP.prototype.KickUser = function(car_id){
-    var buf = new Buffer(255);
-    buf.fill(0);
-    buf.writeUInt8(ACSP.KICK_USER,0);
-    buf.writeUInt8(car_id,1);
-    this._send(buf);
+ACSP.prototype.kickUser = function(car_id){
+
+    var buf = new BufferWriter()
+        .writeUInt8(ACSP.KICK_USER)
+        .writeUInt8(car_id)
+        .toBuffer();
+
+    return this._send(buf);
 }
+
 ACSP.prototype.getVersion = function(){
-    // TODO: Implement
+    
+    return this.getSessionInfo().then(function(info){
+        return info.version;
+    });
+
 }
 
 /**
  * [private] Send packet to AC server
- * @param  {Buffer} buff Contents of the message
- * @return {undefined}
+ * @param  {Buffer} buf Contents of the message
+ * @return {Promise} resolved when message is sent
  */
 ACSP.prototype._send = function(buf) {
     var self = this;
@@ -331,66 +384,16 @@ ACSP.prototype._handleMessage = function(msg, rinfo) {
     }
 };
 
-ACSP.prototype.pollCarStatus = function(car_id){
-    var self = this;
-
-    return this.getCarInfo(car_id).cancellable().then(function(info){
-        if (!info.is_connected) {
-            return Promise.delay(1000).then(function(){
-                return self.pollCarStatus(car_id);
-            });
-        }
-
-        return true;
-    });
-}
-
-ACSP.prototype.pollUntilStatusKnown = function(car_id){
-    var pollPromise = this.pollCarStatus(car_id);
-
-    var handler;
-    var self = this;
-
-    handler = function(conn_info){
-        if (conn_info === car_id) {
-            pollPromise.cancel(Error('Connection reset'));
-        }
-    };
-
-    this.on('new_connection', handler);
-    this.on('connection_closed', handler);
-
-    return pollPromise.catch(function(err){
-        debug('Poll promise error:', err);
-        return false;
-    }).finally(function(){
-        self.removeListener('new_connection', handler);
-        self.removeListener('connection_closed', handler);
-    });
-};
-
-ACSP.prototype.writeStringW = function(buf, str, offset){
-    buf.writeUInt8(str.length, offset);
-    // hacky method that ignores half the UTF-32 space
-    buf.write(str.split('').join('\u0000') + '\u0000', offset + 1, str.length * 4, 'utf-16le');
-}
-
 ACSP.prototype.readString = function(buf) {
     var length = buf.nextUInt8();
     var strBuf = buf.nextBuffer(length);
-    // var str = iconv.convert(strBuf).toString('utf8');
-    // return codepage.utils.decode(12000, buf);
     return strBuf.toString('utf8');
-    // return str;
 }
 
 ACSP.prototype.readStringW = function(buf) {
     var length = buf.nextUInt8();
     var strBuf = buf.nextBuffer(length*4);
-    // var str = iconv.convert(strBuf).toString('utf8');
-    // return codepage.utils.decode(12000, buf);
     return strBuf.toString('utf-16le').split('\u0000').join('');
-    // return str;
 }
 
 ACSP.prototype.readVector3f = function (buf){
